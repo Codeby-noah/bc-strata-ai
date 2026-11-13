@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import {
   MinutesWorkspace,
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Meeting Minutes" };
 export const instant = false;
 
 export default async function MinutesPage() {
+  await connection();
   const context = await getStrataContext();
   const strata = context?.activeMembership;
   if (!strata) return null;

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { printPlainDocument } from "@/lib/print-document";
 
 export type MeetingRecord = {
   id: string;
@@ -271,13 +272,25 @@ export function MinutesWorkspace({
                 Review the structured draft before saving or publishing.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setEditingFormattedContent((editing) => !editing)}
-              className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              {editingFormattedContent ? "Preview" : "Edit text"}
-            </button>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={() => printPlainDocument(
+                  `${meetingType} · ${meetingDate}`,
+                  formattedContent,
+                )}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Print
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingFormattedContent((editing) => !editing)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {editingFormattedContent ? "Preview" : "Edit text"}
+              </button>
+            </div>
           </div>
           {editingFormattedContent ? (
             <textarea
@@ -308,7 +321,7 @@ export function MinutesWorkspace({
               disabled={generating || savingStatus !== null}
               className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
             >
-              {savingStatus === "published" ? "Publishing…" : "Publish & Distribute"}
+              {savingStatus === "published" ? "Publishing…" : "Publish to portal"}
             </button>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">

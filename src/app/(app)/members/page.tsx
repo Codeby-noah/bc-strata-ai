@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { MemberManagement } from "@/components/MemberManagement";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,8 +10,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Members & access",
 };
+export const instant = false;
 
 export default async function MembersPage() {
+  await connection();
   const context = await getStrataContext();
   const strata = context?.activeMembership;
   if (!strata) {

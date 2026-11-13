@@ -73,16 +73,27 @@ export function LedgerTransactions({
             Posted entries for this strata workspace.
           </p>
         </div>
-        {canPost ? (
-          <button
-            type="button"
-            onClick={() => setFormOpen((open) => !open)}
-            aria-expanded={formOpen}
-            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            {formOpen ? "Close form" : "+ New Transaction"}
-          </button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {visibleTransactions.length ? (
+            <button
+              type="button"
+              onClick={() => downloadLedgerCsv(visibleTransactions)}
+              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Download CSV
+            </button>
+          ) : null}
+          {canPost ? (
+            <button
+              type="button"
+              onClick={() => setFormOpen((open) => !open)}
+              aria-expanded={formOpen}
+              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              {formOpen ? "Close form" : "+ New Transaction"}
+            </button>
+          ) : null}
+        </div>
       </div>
       {formOpen ? (
         <div className="border-b border-gray-200 bg-zinc-50 px-5 pb-5">
@@ -155,6 +166,29 @@ export function LedgerTransactions({
       )}
     </section>
   );
+}
+
+function downloadLedgerCsv(transactions: LedgerTransaction[]) {
+  const rows = [
+    ["Date", "Description", "Reference", "Fund", "Amount", "Status"],
+    ...transactions.map((transaction) => [
+      transaction.entry_date,
+      transaction.description,
+      transaction.reference ?? "",
+      fundLabels[transaction.fund],
+      transaction.amount.toFixed(2),
+      "Posted",
+    ]),
+  ];
+  const csv = rows
+    .map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","))
+    .join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "strata-ledger.csv";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function LedgerEmptyIcon() {

@@ -37,7 +37,7 @@ export function BillingSubscribeButton() {
         className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
       >
         {busy ? <LoadingSpinner /> : null}
-        {busy ? "Connecting to Stripe…" : "Lock In $119/mo Launch Price"}
+        {busy ? "Connecting to Stripe…" : "Start 1-month free trial"}
       </button>
       {message ? (
         <p role="alert" className="mt-3 text-sm text-red-700">{message}</p>

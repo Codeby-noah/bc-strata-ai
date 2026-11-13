@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ChatInterface } from "@/components/vault/ChatInterface";
+import { MAX_UPLOAD_BYTES, maxUploadLabel } from "@/lib/uploads";
 import { toast } from "sonner";
 
 type DocumentRecord = {
@@ -17,7 +19,6 @@ type DocumentRecord = {
   created_at: string;
 };
 
-const maximumFileSize = 20 * 1024 * 1024;
 function safeFileName(fileName: string) {
   const safeName = fileName
     .normalize("NFKD")
@@ -45,19 +46,6 @@ export function DocumentVault({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [category, setCategory] = useState("other");
   const [aiConsent, setAiConsent] = useState(false);
-  const [searchQuestion, setSearchQuestion] = useState("");
-  const [searchAnswer, setSearchAnswer] = useState("");
-  const [searchCitations, setSearchCitations] = useState<
-    Array<{
-      documentId: string;
-      title: string;
-      category: string;
-      pageNumber: number | null;
-      section: string | null;
-      excerpt: string;
-    }>
-  >([]);
-  const [searchBusy, setSearchBusy] = useState(false);
 
   async function uploadDocument() {
     setMessage("");
@@ -73,9 +61,9 @@ export function DocumentVault({
       toast.error("That PDF is empty. Choose another file.");
       return;
     }
-    if (file.size > maximumFileSize) {
-      setMessage("Files must be 20 MB or smaller.");
-      toast.error("Files must be 20 MB or smaller.");
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setMessage(`Files must be ${maxUploadLabel()} or smaller.`);
+      toast.error(`Files must be ${maxUploadLabel()} or smaller.`);
       return;
     }
     if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) {
@@ -117,7 +105,7 @@ export function DocumentVault({
 
       if (uploadError) {
         setMessage("The file could not be uploaded. Check your access and try again.");
-        toast.error("The file could not be uploaded.");
+        toast.error("Failed to upload document. Please try again.");
         return;
       }
 
@@ -186,46 +174,16 @@ export function DocumentVault({
       router.refresh();
     } catch {
       setMessage("The document could not be uploaded. Check your connection and try again.");
-      toast.error("The document could not be uploaded.");
+      toast.error("Failed to upload document. Please try again.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function searchVault(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (searchQuestion.trim().length < 3) {
-      setSearchAnswer("Enter a question to search the strata documents.");
-      toast.error("Enter a question to search the strata documents.");
-      return;
-    }
-
-    setSearchBusy(true);
-    setSearchAnswer("");
-    setSearchCitations([]);
-    try {
-      const response = await fetch("/api/documents/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: searchQuestion.trim() }),
-      });
-      const result = (await response.json()) as {
-        answer?: string;
-        error?: string;
-        citations?: typeof searchCitations;
-      };
-      setSearchAnswer(
-        response.ok
-          ? result.answer ?? "No answer was returned."
-          : result.error ?? "Search could not be completed.",
-      );
-      setSearchCitations(response.ok ? result.citations ?? [] : []);
-      if (!response.ok) toast.error(result.error ?? "Search could not be completed.");
-    } catch {
-      setSearchAnswer("Search could not be completed. Try again.");
-      toast.error("Search could not be completed.");
-    } finally {
-      setSearchBusy(false);
+  function openDocumentById(documentId: string) {
+    const document = documents.find((item) => item.id === documentId);
+    if (document) {
+      void downloadDocument(document.storage_path);
     }
   }
 
@@ -260,7 +218,8 @@ export function DocumentVault({
               Add a document
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              PDFs are stored in this strata’s private workspace · up to 20 MB
+              PDFs are stored in this strata’s private workspace · up to{" "}
+              {maxUploadLabel()}
             </p>
           </div>
           <label className="text-sm font-medium text-slate-700">
@@ -317,7 +276,7 @@ export function DocumentVault({
           <span className="mt-1 text-sm text-slate-500">
             {selectedFile
               ? `${selectedFile.name} · ${formatFileSize(selectedFile.size)}`
-              : "PDF documents up to 20 MB"}
+              : `PDF documents up to ${maxUploadLabel()}`}
           </span>
         </button>
         <input
@@ -349,7 +308,7 @@ export function DocumentVault({
           type="button"
           onClick={() => void uploadDocument()}
           disabled={busy || !selectedFile}
-          className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-slate-800 active:scale-95 active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="inline-flex items-center gap-2">
             {busy ? <LoadingSpinner /> : null}
@@ -363,67 +322,7 @@ export function DocumentVault({
         ) : null}
       </section>
 
-      <form
-        onSubmit={(event) => void searchVault(event)}
-        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-      >
-        <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-          Ask this strata’s rulebook
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Answers are based only on indexed documents and include document/page
-          citations. AI may be wrong; verify important decisions in the source.
-        </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <label htmlFor="rulebook-question" className="sr-only">
-            Question for the strata rulebook
-          </label>
-          <input
-            id="rulebook-question"
-            name="question"
-            value={searchQuestion}
-            onChange={(event) => setSearchQuestion(event.target.value)}
-            minLength={3}
-            maxLength={500}
-            placeholder="Can a unit keep a dog under an exemption?"
-            className="h-11 flex-1 rounded-xl border border-gray-200 bg-zinc-50 px-3 text-sm text-slate-900"
-          />
-          <button
-            type="submit"
-            disabled={searchBusy}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-70"
-          >
-            <span className="inline-flex items-center gap-2">
-              {searchBusy ? <LoadingSpinner /> : null}
-              {searchBusy ? "Searching…" : "Ask"}
-            </span>
-          </button>
-        </div>
-        {searchAnswer ? (
-          <div className="mt-5 rounded-xl bg-zinc-50 p-4">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-900">
-              {searchAnswer}
-            </p>
-            {searchCitations.length ? (
-              <ul className="mt-4 space-y-3 border-t border-gray-200 pt-3">
-                {searchCitations.map((citation) => (
-                  <li
-                    key={`${citation.documentId}-${citation.pageNumber ?? "na"}`}
-                    className="text-xs leading-5 text-slate-500"
-                  >
-                    <p className="font-semibold text-slate-800">
-                      {citation.title}
-                      {citation.pageNumber ? ` · Page ${citation.pageNumber}` : ""}
-                      {citation.section ? ` · ${citation.section}` : ""}
-                    </p>
-                    <p className="mt-1">{citation.excerpt}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-      </form>
+      <ChatInterface onOpenDocument={openDocumentById} />
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 px-5 py-4">

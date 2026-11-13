@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStrataContext } from "@/lib/strata/context";
+import { paidWorkspaceResponse } from "@/lib/strata/subscription";
 import { canManageExemptions } from "@/lib/strata/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
   if (!strata || !canManageExemptions(strata.role)) {
     return NextResponse.json({ error: "Council access is required." }, { status: 403 });
   }
+  const subscription = await paidWorkspaceResponse(strata.id);
+  if (subscription) return subscription;
 
   const body: unknown = await request.json().catch(() => null);
   if (

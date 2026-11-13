@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { SignUpForm } from "@/components/SignUpForm";
+import { PublicFooter, PublicHeader } from "@/components/site/PublicSite";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { getStrataContext } from "@/lib/strata/context";
 
@@ -14,15 +16,18 @@ export const instant = false;
 
 export default function SignUpPage() {
   return (
-    <Suspense
-      fallback={<LoadingScreen message="Loading account setup…" />}
-    >
-      <SignUpPanel />
-    </Suspense>
+    <div className="min-h-screen bg-slate-50">
+      <PublicHeader cornerHref="/login" cornerLabel="Log in" />
+      <Suspense fallback={<LoadingScreen message="Loading account setup…" />}>
+        <SignUpPanel />
+      </Suspense>
+      <PublicFooter />
+    </div>
   );
 }
 
 async function SignUpPanel() {
+  await connection();
   const context = await getStrataContext();
   if (context) {
     redirect("/dashboard");
@@ -43,7 +48,7 @@ async function SignUpPanel() {
           href="/login"
           className="text-xs font-semibold uppercase tracking-[0.18em] text-pine-700"
         >
-          BC Strata
+          StrataDock
         </Link>
         <h1 className="mt-3 font-serif text-3xl tracking-tight text-navy-950">
           Create your account

@@ -1,24 +1,75 @@
 import { NextResponse } from "next/server";
+import {
+  introCouponId,
+  introDiscountCents,
+  introDiscountMonths,
+  introPriceSummary,
+  regularMonthlyCents,
+} from "@/lib/billing/price";
 import { getStrataContext } from "@/lib/strata/context";
+import { getSiteUrl } from "@/lib/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-const monthlyAmountCents = 11_900;
+type StripeCoupon = {
+  id?: string;
+  amount_off?: number | null;
+  currency?: string | null;
+  duration?: string | null;
+  duration_in_months?: number | null;
+  valid?: boolean;
+};
 
-function getSiteUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!configuredUrl) return null;
-  try {
-    const url = new URL(configuredUrl);
-    if (
-      url.protocol !== "https:" &&
-      !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))
-    ) {
-      return null;
-    }
-    return url.origin;
-  } catch {
-    return null;
+async function stripeRequest(secretKey: string, path: string, body?: URLSearchParams) {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: body ? "POST" : "GET",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
+    },
+    body,
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  });
+  const result = (await response.json()) as StripeCoupon & {
+    error?: { code?: string; message?: string };
+  };
+  return { ok: response.ok, status: response.status, result };
+}
+
+function couponMatchesIntro(coupon: StripeCoupon) {
+  return (
+    coupon.amount_off === introDiscountCents &&
+    coupon.currency === "cad" &&
+    coupon.duration === "repeating" &&
+    coupon.duration_in_months === introDiscountMonths &&
+    coupon.valid !== false
+  );
+}
+
+async function ensureIntroCoupon(secretKey: string) {
+  const existing = await stripeRequest(secretKey, `coupons/${introCouponId}`);
+  if (existing.ok) {
+    return couponMatchesIntro(existing.result) ? introCouponId : null;
   }
+  if (existing.status !== 404) return null;
+
+  const created = await stripeRequest(
+    secretKey,
+    "coupons",
+    new URLSearchParams({
+      id: introCouponId,
+      amount_off: String(introDiscountCents),
+      currency: "cad",
+      duration: "repeating",
+      duration_in_months: String(introDiscountMonths),
+      name: "$40 off for the first 12 months",
+    }),
+  );
+  if (created.ok && created.result.id) return created.result.id;
+  if (created.result.error?.code !== "resource_already_exists") return null;
+
+  const retry = await stripeRequest(secretKey, `coupons/${introCouponId}`);
+  return retry.ok && couponMatchesIntro(retry.result) ? introCouponId : null;
 }
 
 export async function POST(request: Request) {
@@ -67,20 +118,29 @@ export async function POST(request: Request) {
     );
   }
 
+  const introCoupon = await ensureIntroCoupon(secretKey);
+  if (!introCoupon) {
+    return NextResponse.json(
+      { error: "Stripe could not start the introductory price. Try again or contact support." },
+      { status: 502 },
+    );
+  }
+
   const params = new URLSearchParams({
     mode: "subscription",
     success_url: `${siteUrl}/billing?checkout=success`,
     cancel_url: `${siteUrl}/billing?checkout=cancelled`,
     "line_items[0][price_data][currency]": "cad",
-    "line_items[0][price_data][unit_amount]": String(monthlyAmountCents),
+    "line_items[0][price_data][unit_amount]": String(regularMonthlyCents),
     "line_items[0][price_data][recurring][interval]": "month",
-    "line_items[0][price_data][product_data][name]": "BC Strata AI",
-    "line_items[0][price_data][product_data][description]":
-      "Strata council operations subscription",
+    "line_items[0][price_data][product_data][name]": "StrataDock",
+    "line_items[0][price_data][product_data][description]": introPriceSummary,
     "line_items[0][quantity]": "1",
+    "discounts[0][coupon]": introCoupon,
     client_reference_id: strata.id,
     "metadata[strata_id]": strata.id,
     "subscription_data[metadata][strata_id]": strata.id,
+    "subscription_data[trial_period_days]": "30",
   });
   if (typeof billing?.stripe_customer_id === "string") {
     params.set("customer", billing.stripe_customer_id);

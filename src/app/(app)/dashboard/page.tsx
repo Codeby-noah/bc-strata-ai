@@ -28,6 +28,8 @@ export default async function CouncilDashboardPage() {
     draftMinutesResult,
     recentTicketsResult,
     recentEntriesResult,
+    pendingInvoicesResult,
+    complianceResult,
   ] = await Promise.all([
     supabase
       .from("ledger_account_balances")
@@ -64,6 +66,18 @@ export default async function CouncilDashboardPage() {
       .eq("strata_id", strata.id)
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("strata_id", strata.id)
+      .in("status", ["uploaded", "review_required"]),
+    supabase
+      .from("strata_compliance_items")
+      .select("id, title, category, due_date, status")
+      .eq("strata_id", strata.id)
+      .eq("status", "upcoming")
+      .order("due_date", { ascending: true })
+      .limit(5),
   ]);
 
   if (
@@ -73,7 +87,8 @@ export default async function CouncilDashboardPage() {
     pendingFormsResult.error ||
     draftMinutesResult.error ||
     recentTicketsResult.error ||
-    recentEntriesResult.error
+    recentEntriesResult.error ||
+    pendingInvoicesResult.error
   ) {
     throw new Error("Unable to load your strata dashboard.");
   }
@@ -89,6 +104,8 @@ export default async function CouncilDashboardPage() {
       .reduce((sum, account) => sum + Number(account.current_balance), 0);
 
   const maintenanceCount = maintenanceCountResult.count ?? 0;
+  const pendingInvoiceCount = pendingInvoicesResult.count ?? 0;
+  const deadlines = complianceResult.error ? [] : complianceResult.data ?? [];
   const governanceCount =
     (pendingFormsResult.count ?? 0) + (draftMinutesResult.count ?? 0);
   const activity = [
@@ -118,7 +135,7 @@ export default async function CouncilDashboardPage() {
         description="A single operating view for self-managed townhouse strata corporations in British Columbia — funds, filings, and records."
       />
 
-      <section aria-label="Executive metrics" className="grid gap-4 md:grid-cols-3">
+      <section aria-label="Executive metrics" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500">Financial position</p>
@@ -152,6 +169,21 @@ export default async function CouncilDashboardPage() {
         </article>
         <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Invoice OCR queue</p>
+            <Link
+              href="/ledgers"
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Review
+            </Link>
+          </div>
+          <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">
+            {pendingInvoiceCount}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Awaiting analysis or treasurer approval</p>
+        </article>
+        <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500">Governance queue</p>
             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
               Needs review
@@ -163,6 +195,22 @@ export default async function CouncilDashboardPage() {
           <p className="mt-1 text-xs text-slate-500">Pending Form B/F requests and draft minutes</p>
         </article>
       </section>
+
+      {deadlines.length ? (
+        <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-lg font-semibold text-slate-900">Upcoming compliance dates</h2>
+          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+            {deadlines.map((item) => (
+              <li key={item.id}>
+                {item.due_date} · {item.title} · {item.category}
+              </li>
+            ))}
+          </ul>
+          <Link href="/governance/compliance" className="mt-4 inline-flex text-sm font-semibold text-blue-700">
+            Open the compliance tracker
+          </Link>
+        </section>
+      ) : null}
 
       <section className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 px-5 py-4">

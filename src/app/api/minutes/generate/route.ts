@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStrataContext } from "@/lib/strata/context";
+import { paidWorkspaceResponse } from "@/lib/strata/subscription";
 import { canManageExemptions } from "@/lib/strata/roles";
 
 type MinutesSection = {
@@ -103,6 +104,8 @@ export async function POST(request: Request) {
   if (!context.activeMembership || !canManageExemptions(context.activeMembership.role)) {
     return NextResponse.json({ error: "Council access is required." }, { status: 403 });
   }
+  const subscription = await paidWorkspaceResponse(context.activeMembership.id);
+  if (subscription) return subscription;
 
   const body: unknown = await request.json().catch(() => null);
   if (

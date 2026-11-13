@@ -14,10 +14,10 @@ export default function MaintenancePage() {
         description:
           "Receive repair requests, coordinate contractor quotes, and keep a location-based record of work across the property.",
         metrics: [
-          { label: "Open requests", value: "—", note: "Requires workspace setup" },
-          { label: "In progress", value: "—", note: "Requires workspace setup" },
-          { label: "Quotes to review", value: "—", note: "Council review queue" },
-          { label: "Completed this year", value: "—", note: "Property work history" },
+          { label: "Open requests", value: "—", note: "Not finished yet" },
+          { label: "In progress", value: "—", note: "Work underway" },
+          { label: "Quotes to review", value: "—", note: "Contractor prices on file" },
+          { label: "Completed this year", value: "—", note: "Finished this calendar year" },
         ],
         sections: [
           {
@@ -25,14 +25,14 @@ export default function MaintenancePage() {
             description: "Track reports from first notice through resolution.",
             emptyTitle: "No requests to display",
             emptyDescription:
-              "Once request intake is connected, residents can describe an issue, add a location and photos, and follow its status here.",
+              "Submit a request with the form on this page. Residents can also report one from their portal.",
           },
           {
             title: "Contractors & work history",
             description: "Keep quotes, decisions, and completed work together.",
             emptyTitle: "No maintenance history yet",
             emptyDescription:
-              "Council will be able to compare quotes and keep a searchable history by building, unit, or shared area.",
+              "Record a contractor quote on a request. Finished jobs stay in this list.",
           },
         ],
       }}

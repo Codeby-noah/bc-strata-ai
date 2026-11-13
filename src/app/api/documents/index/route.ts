@@ -5,7 +5,9 @@ import {
   getOpenAiApiKey,
 } from "@/lib/ai/openai";
 import { chunkDocumentPages, extractPdfPages } from "@/lib/documents/text";
+import { rateLimit } from "@/lib/security/rate-limit";
 import { getStrataContext } from "@/lib/strata/context";
+import { paidWorkspaceResponse } from "@/lib/strata/subscription";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const maxDuration = 120;
@@ -18,6 +20,18 @@ export async function POST(request: NextRequest) {
   const context = await getStrataContext();
   if (!context?.activeMembership) {
     return NextResponse.json({ error: "Sign in to index a document." }, { status: 401 });
+  }
+  const subscription = await paidWorkspaceResponse(context.activeMembership.id);
+  if (subscription) return subscription;
+  const limit = rateLimit(`documents-index:${context.userId}`, {
+    limit: 8,
+    windowMs: 10 * 60_000,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many document indexes. Wait a few minutes and try again." },
+      { status: 429 },
+    );
   }
 
   let body: unknown;
@@ -112,7 +126,7 @@ export async function POST(request: NextRequest) {
   const needsVision =
     document.mime_type.startsWith("image/") ||
     (document.mime_type === "application/pdf" &&
-      pages.some((page) => page.text.trim().length === 0));
+      pages.every((page) => page.text.trim().length === 0));
   if (needsVision) {
     if (document.mime_type === "application/pdf" && pages.length > 15) {
       return NextResponse.json(

@@ -12,12 +12,12 @@ export default function VotingPage() {
         eyebrow: "Governance",
         title: "Council voting",
         description:
-          "Organize decisions with defined voting periods and a timestamped record for council review.",
+          "Open a council decision, record one vote per council member, and keep the totals with the decision.",
         metrics: [
-          { label: "Open votes", value: "—", note: "Requires workspace setup" },
-          { label: "Awaiting your vote", value: "—", note: "Private to your account" },
-          { label: "Recently closed", value: "—", note: "Decision history" },
-          { label: "Council members", value: "—", note: "Active membership list" },
+          { label: "Open votes", value: "—", note: "Decisions still open" },
+          { label: "Awaiting your vote", value: "—", note: "Open, with no vote from you" },
+          { label: "Recently closed", value: "—", note: "Closed or cancelled" },
+          { label: "Recorded votes", value: "—", note: "Responses saved so far" },
         ],
         sections: [
           {
@@ -25,7 +25,7 @@ export default function VotingPage() {
             description: "Review the question, deadline, and current status.",
             emptyTitle: "No active votes",
             emptyDescription:
-              "When voting is enabled, eligible council members can review open decisions and submit a recorded response.",
+              "Open a vote with the form on this page. Each council member can record one response.",
           },
           {
             title: "Decision record",

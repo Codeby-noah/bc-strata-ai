@@ -37,6 +37,7 @@ const navGroups: Array<{
       { href: "/governance/voting", label: "Council voting", icon: VoteIcon },
       { href: "/governance/compliance", label: "Compliance & warranties", icon: ComplianceIcon },
       { href: "/members", label: "Members & access", icon: MembersIcon, adminOnly: true },
+      { href: "/settings", label: "Workspace settings", icon: SettingsIcon },
       { href: "/billing", label: "Subscription billing", icon: BillingIcon, adminOnly: true },
     ],
   },
@@ -68,7 +69,7 @@ export function Sidebar({ mobileOpen, onClose, role }: SidebarProps) {
         <div className="border-b border-gray-200 px-6 py-6">
           <Link href="/dashboard" className="block" onClick={onClose}>
             <p className="text-xl font-semibold tracking-tight text-slate-900">
-              BC Strata AI
+              StrataDock
             </p>
             <p className="mt-1 text-xs uppercase tracking-wider text-slate-400">
               Compliance · Stewardship
@@ -255,6 +256,20 @@ function BillingIcon() {
     <svg viewBox="0 0 20 20" fill="none" className="mt-0.5 h-4 w-4 shrink-0" aria-hidden>
       <rect x="2.5" y="4.5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
       <path d="M3 8h14M6 12h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="mt-0.5 h-4 w-4 shrink-0" aria-hidden>
+      <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10 2.5v2M10 15.5v2M3.5 10h2M14.5 10h2M5.2 5.2l1.4 1.4M13.4 13.4l1.4 1.4M5.2 14.8l1.4-1.4M13.4 6.6l1.4-1.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

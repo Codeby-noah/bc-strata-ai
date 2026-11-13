@@ -17,12 +17,14 @@ export function AppShell({
   tenants,
   activeTenantId,
   activeRole,
+  billingNotice = null,
 }: {
   children: React.ReactNode;
   email: string;
   tenants: TenantOption[];
   activeTenantId: string;
   activeRole: string;
+  billingNotice?: string | null;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const activeTenant = tenants.find((tenant) => tenant.id === activeTenantId);
@@ -93,6 +95,14 @@ export function AppShell({
         {activeTenant ? (
           <div className="border-b border-gray-200 bg-white px-4 py-2 text-xs text-slate-500 sm:hidden">
             {activeTenant.name} · LMS {activeTenant.strataNumber}
+          </div>
+        ) : null}
+        {billingNotice ? (
+          <div
+            className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 lg:px-10"
+            role="status"
+          >
+            {billingNotice}
           </div>
         ) : null}
         <main className="flex-1 px-4 py-8 lg:px-10 lg:py-10">{children}</main>

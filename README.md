@@ -1,4 +1,4 @@
-# BC Strata
+# StrataDock
 
 Private operations workspace for self-managed townhouse strata councils in British Columbia.
 
@@ -54,7 +54,7 @@ No test accounts, strata, memberships, financial entries, or storage objects are
 
 ## Stripe subscription billing
 
-The billing page is `/billing`; only a strata administrator can start Checkout. The server creates a Stripe Checkout subscription for **$119 CAD per month** and tags the Checkout Session and subscription with the active `strata_id`. A verified webhook stores the customer, subscription, and status in `public.strata_billing`. This is separate from the strata record, is readable only by that strata's administrator, and is written by the server-side service role. Stripe status currently records billing state; it does not yet gate access to application features. Payment processing, billing migration application, cancellation management, and tax advice are outside this implementation.
+The billing page is `/billing`; only a strata administrator can start Checkout. The server creates a Stripe Checkout subscription at **$179 CAD per month**, with a **$40 discount for the first 12 months** after the free trial so those months are **$139 CAD**, and tags the Checkout Session and subscription with the active `strata_id`. A verified webhook stores the customer, subscription, and status in `public.strata_billing`. This is separate from the strata record, is readable only by that strata's administrator, and is written by the server-side service role. Stripe status currently records billing state; it does not yet gate access to application features. Payment processing, billing migration application, cancellation management, and tax advice are outside this implementation.
 
 Add these values to the ignored local `.env.local` file; never use `NEXT_PUBLIC_` prefixes for secrets:
 

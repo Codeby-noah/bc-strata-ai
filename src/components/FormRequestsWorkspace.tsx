@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { printPlainDocument } from "@/lib/print-document";
 
 export type FormRequestRow = {
   id: string;
@@ -261,13 +262,25 @@ export function FormRequestsWorkspace({
                   {preview.formRequest.form_type} · Unit {preview.formRequest.unit_number}
                 </h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setPreview(null)}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Close
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => printPlainDocument(
+                    `${preview.formRequest.form_type} draft · Unit ${preview.formRequest.unit_number}`,
+                    formDraftText(preview),
+                  )}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Print draft
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreview(null)}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+              </div>
             </header>
             <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.4fr)]">
               <section className="h-fit rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -381,6 +394,40 @@ export function FormRequestsWorkspace({
       ) : null}
     </>
   );
+}
+
+function formDraftText(preview: PreviewData) {
+  const lines = [
+    `${preview.strata.name} · LMS ${preview.strata.strataNumber}`,
+    preview.formRequest.form_type === "Form B" ? "INFORMATION CERTIFICATE" : "CERTIFICATE OF PAYMENT",
+    "Draft data preview. This is not a certified Form B or Form F.",
+    "",
+    `Unit: ${preview.formRequest.unit_number}`,
+    `Requester: ${preview.formRequest.requested_by}`,
+    `Form fee on record: ${currency.format(Number(preview.formRequest.amount_due))}`,
+    `Request status: ${preview.formRequest.status.replaceAll("_", " ")}`,
+    `Contingency reserve balance: ${preview.crfBalance === null ? "Not available" : currency.format(preview.crfBalance)}`,
+    `Parking / storage: ${
+      preview.parking.length
+        ? preview.parking.map((item) => `${item.asset_type.replaceAll("_", " ")} ${item.stall_number}`).join("; ")
+        : "No assignment on record"
+    }`,
+    "",
+    "Bylaw source excerpts",
+  ];
+  if (preview.bylawExcerpts.length) {
+    for (const excerpt of preview.bylawExcerpts) {
+      lines.push(
+        `${excerpt.title}${excerpt.page_number ? ` · Page ${excerpt.page_number}` : ""}${excerpt.section ? ` · ${excerpt.section}` : ""}`,
+        excerpt.content,
+        "",
+      );
+    }
+  } else {
+    lines.push("No indexed bylaw excerpts are available.", "");
+  }
+  lines.push(...preview.notices);
+  return lines.join("\n");
 }
 
 function ChecklistItem({

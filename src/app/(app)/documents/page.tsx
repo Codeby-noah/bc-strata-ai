@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { DocumentVault } from "@/components/DocumentVault";
 import { getStrataContext } from "@/lib/strata/context";
@@ -7,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Document Vault",
 };
+export const instant = false;
 
 type DocumentRecord = {
   id: string;
@@ -22,6 +24,7 @@ type DocumentRecord = {
 export default async function DocumentsPage({
   searchParams,
 }: PageProps<"/documents">) {
+  await connection();
   const context = await getStrataContext();
   const strata = context?.activeMembership;
   if (!strata) {

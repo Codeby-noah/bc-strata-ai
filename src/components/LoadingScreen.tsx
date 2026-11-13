@@ -10,7 +10,7 @@ export function LoadingScreen({ message }: { message: string }) {
           <span className="font-serif text-xl text-white">B</span>
         </div>
         <p className="mt-4 font-serif text-2xl tracking-tight text-navy-950">
-          BC Strata
+          StrataDock
         </p>
         <div className="mx-auto mt-6 h-1.5 w-48 overflow-hidden rounded-full bg-stone-100">
           <div className="h-full w-1/2 animate-pulse rounded-full bg-pine-700" />

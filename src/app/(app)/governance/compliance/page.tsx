@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CrtRiskChecker } from "@/components/governance/CrtRiskChecker";
 import { FeatureWorkspace } from "@/components/FeatureWorkspace";
 
 export const metadata: Metadata = { title: "Compliance & warranties" };
@@ -6,7 +7,9 @@ export const instant = false;
 
 export default function CompliancePage() {
   return (
-    <FeatureWorkspace
+    <div>
+      <CrtRiskChecker />
+      <FeatureWorkspace
       feature="compliance"
       content={{
         eyebrow: "Governance",
@@ -37,5 +40,6 @@ export default function CompliancePage() {
         ],
       }}
     />
+    </div>
   );
 }

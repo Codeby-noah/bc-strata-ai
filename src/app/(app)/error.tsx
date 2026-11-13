@@ -10,7 +10,7 @@ export default function StrataPageError({
     <main className="flex min-h-[60vh] items-center justify-center px-4 py-12">
       <section className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pine-700">
-          BC Strata
+          StrataDock
         </p>
         <h1 className="mt-3 font-serif text-2xl text-navy-950">
           This page couldn’t load

@@ -1,10 +1,16 @@
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { AppShell } from "@/components/AppShell";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { signOut } from "@/lib/auth/actions";
 import { getStrataContext } from "@/lib/strata/context";
+import {
+  getWorkspaceSubscriptionState,
+  isBillingEnforcementEnabled,
+  subscriptionNotice,
+} from "@/lib/strata/subscription";
 import Link from "next/link";
 
 export const instant = false;
@@ -40,7 +46,7 @@ async function AuthenticatedStrataApp({
       <main className="flex min-h-screen items-center justify-center px-4 py-12">
         <section className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pine-700">
-            BC Strata
+            StrataDock
           </p>
           <h1 className="mt-3 font-serif text-2xl text-navy-950">
             {schemaNotReady
@@ -80,12 +86,59 @@ async function AuthenticatedStrataApp({
     );
   }
 
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const onBillingRoute =
+    pathname === "/billing" || pathname.startsWith("/billing/");
+
+  let billingNotice: string | null = null;
+  if (isBillingEnforcementEnabled()) {
+    const subscription = await getWorkspaceSubscriptionState(
+      context.activeMembership.id,
+    );
+    if (!subscription?.workspaceAccess && !onBillingRoute) {
+      if (context.activeMembership.role === "admin") {
+        redirect("/billing?reason=subscription_required");
+      }
+
+      return (
+        <main className="flex min-h-screen items-center justify-center px-4 py-12">
+          <section className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pine-700">
+              StrataDock
+            </p>
+            <h1 className="mt-3 font-serif text-2xl text-navy-950">
+              This workspace is not active yet
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-ink-500">
+              Your strata administrator needs to start the 1-month free trial or
+              subscription before council tools are available. You can still sign
+              out and try again later.
+            </p>
+            <form action={signOut} className="mt-6">
+              <button
+                type="submit"
+                className="text-sm font-semibold text-ink-700 underline underline-offset-4"
+              >
+                Sign out
+              </button>
+            </form>
+          </section>
+        </main>
+      );
+    }
+
+    if (subscription) {
+      billingNotice = subscriptionNotice(subscription);
+    }
+  }
+
   return (
     <AppShell
       email={context.email}
       tenants={context.memberships}
       activeTenantId={context.activeMembership.id}
       activeRole={context.activeMembership.role}
+      billingNotice={billingNotice}
     >
       {children}
     </AppShell>

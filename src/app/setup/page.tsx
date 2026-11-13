@@ -36,7 +36,7 @@ export default async function SetupPage() {
           href="/dashboard"
           className="text-xs font-semibold uppercase tracking-[0.18em] text-pine-700"
         >
-          BC Strata
+          StrataDock
         </Link>
         <h1 className="mt-3 font-serif text-3xl tracking-tight text-navy-950">
           Set up your strata workspace

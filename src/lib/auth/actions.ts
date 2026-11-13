@@ -121,6 +121,8 @@ export async function signIn(
     return { error: "We couldn't sign you in. Check your details and try again." };
   }
 
+  await supabase.rpc("accept_strata_pending_invites");
+
   const context = await getStrataContext();
   if (context?.activeMembership?.role === "member") {
     redirect("/portal");

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import {
   FormRequestsWorkspace,
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Form B/F Requests" };
 export const instant = false;
 
 export default async function FormsPage() {
+  await connection();
   const context = await getStrataContext();
   const strata = context?.activeMembership;
   if (!strata) return null;

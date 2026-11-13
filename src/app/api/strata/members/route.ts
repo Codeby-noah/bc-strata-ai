@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStrataContext } from "@/lib/strata/context";
+import { paidWorkspaceResponse } from "@/lib/strata/subscription";
 import { canManageMembers, type StrataRole } from "@/lib/strata/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -23,6 +24,8 @@ export async function POST(request: Request) {
   if (!canManageMembers(context.activeMembership.role)) {
     return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
   }
+  const subscription = await paidWorkspaceResponse(context.activeMembership.id);
+  if (subscription) return subscription;
 
   const body: unknown = await request.json().catch(() => null);
   if (
@@ -66,6 +69,8 @@ export async function PATCH(request: Request) {
   if (!canManageMembers(context.activeMembership.role)) {
     return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
   }
+  const subscription = await paidWorkspaceResponse(context.activeMembership.id);
+  if (subscription) return subscription;
 
   const body: unknown = await request.json().catch(() => null);
   if (

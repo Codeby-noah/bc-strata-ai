@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { InvoiceReview } from "@/components/InvoiceReview";
 import { LedgerAccountForm } from "@/components/LedgerAccountForm";
@@ -13,6 +14,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Financial Ledgers",
 };
+
+export const instant = false;
 
 type AccountBalance = {
   account_id: string;
@@ -48,6 +51,7 @@ const currency = new Intl.NumberFormat("en-CA", {
 });
 
 export default async function LedgersPage() {
+  await connection();
   const context = await getStrataContext();
   const strata = context?.activeMembership;
   if (!strata) {
@@ -140,19 +144,21 @@ export default async function LedgersPage() {
 
   let invoices: InvoiceRecord[] = [];
   if (canReviewInvoices) {
-    const { data: invoiceData, error: invoiceError } = await supabase
+    const invoiceColumns =
+      "id, storage_path, file_name, status, vendor, invoice_number, invoice_date, due_date, subtotal, tax, total, suggested_account_code, suggested_fund, extraction, created_at";
+    const invoiceResult = await supabase
       .from("invoices")
-      .select(
-        "id, storage_path, file_name, status, vendor, invoice_number, invoice_date, due_date, subtotal, tax, total, suggested_account_code, suggested_fund, extraction, created_at",
-      )
+      .select(invoiceColumns)
       .eq("strata_id", strata.id)
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (invoiceError) {
-      throw new Error("Unable to load the invoice review queue.");
+    if (invoiceResult.error) {
+      throw new Error(
+        `Unable to load the invoice review queue. ${invoiceResult.error.message}`,
+      );
     }
-    invoices = (invoiceData ?? []) as unknown as InvoiceRecord[];
+    invoices = (invoiceResult.data ?? []) as unknown as InvoiceRecord[];
   }
 
   return (
@@ -224,6 +230,15 @@ export default async function LedgersPage() {
             invoices={invoices}
             strataId={strata.id}
             canProcess={canProcessInvoices}
+            accounts={rows
+              .filter((row) => row.is_active)
+              .map((row) => ({
+                id: row.account_id,
+                account_code: row.account_code,
+                account_name: row.account_name,
+                account_type: row.account_type,
+                fund: row.fund,
+              }))}
           />
         ) : (
           <p className="mt-8 rounded-xl border border-stone-200 bg-white p-5 text-sm text-ink-500">

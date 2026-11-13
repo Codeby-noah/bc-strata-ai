@@ -4,23 +4,23 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "StrataOS | The Automated Co-Manager for BC Stratas",
-    template: "%s | StrataOS",
+    default: "StrataDock | Software for self-managed strata councils",
+    template: "%s | StrataDock",
   },
   description:
-    "A modern operating system for self-managed BC stratas—designed to simplify compliance, ledgers, documents, and maintenance, with the potential to save communities up to $18,000 a year.",
+    "An online workspace for self-managed strata corporations in British Columbia. Council tools, a resident portal, and records for documents, money, repairs, and meetings.",
   openGraph: {
     type: "website",
-    siteName: "StrataOS",
-    title: "StrataOS | The Automated Co-Manager for BC Stratas",
+    siteName: "StrataDock",
+    title: "StrataDock | Software for self-managed strata councils",
     description:
-      "Simplify compliance, ledgers, documents, and maintenance for self-managed BC stratas—with the potential to save communities up to $18,000 a year.",
+      "Council tools and a resident portal for self-managed strata corporations in British Columbia.",
   },
   twitter: {
     card: "summary",
-    title: "StrataOS | The Automated Co-Manager for BC Stratas",
+    title: "StrataDock | Software for self-managed strata councils",
     description:
-      "A modern operating system for self-managed BC stratas. Simplify operations and explore potential savings of up to $18,000 a year.",
+      "Council tools and a resident portal for self-managed strata corporations in British Columbia.",
   },
 };
 
@@ -28,11 +28,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className="h-full scroll-smooth antialiased"
+      data-scroll-behavior="smooth"
+      className="h-full scroll-smooth scroll-pt-20 antialiased"
     >
-      <body className="min-h-full bg-zinc-50 text-slate-900">
+      <body className="min-h-full bg-slate-50 text-slate-900 antialiased">
         {children}
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );

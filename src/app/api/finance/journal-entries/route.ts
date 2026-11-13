@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStrataContext } from "@/lib/strata/context";
+import { paidWorkspaceResponse } from "@/lib/strata/subscription";
 import { canManageFinance } from "@/lib/strata/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { z } from "zod";
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+  const subscription = await paidWorkspaceResponse(context.activeMembership.id);
+  if (subscription) return subscription;
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = journalEntrySchema.safeParse(body);

@@ -25,14 +25,14 @@ export default function AmenitiesPage() {
             description: "Review shared spaces and open time slots.",
             emptyTitle: "No shared spaces configured",
             emptyDescription:
-              "Set up spaces such as a clubhouse, guest suite, or common room and publish their booking rules.",
+              "Add a shared space with the form on this page. People can then request a time.",
           },
           {
             title: "Reservations",
             description: "See requested and confirmed bookings in one place.",
             emptyTitle: "No reservations yet",
             emptyDescription:
-              "After the booking workflow is connected, residents can request a time and see reservation updates here.",
+              "Request a booking with the form on this page. Council can approve or decline it here.",
           },
         ],
       }}

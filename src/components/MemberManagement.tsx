@@ -126,7 +126,7 @@ export function MemberManagement({
           {busy ? "Saving…" : "Add member"}
         </button>
         <p className="text-xs leading-5 text-ink-500 sm:col-span-3">
-          They must create and verify their BC Strata account first. This grants
+          They must create and verify their StrataDock account first. This grants
           workspace access immediately; no invitation email is sent.
         </p>
         {message ? (

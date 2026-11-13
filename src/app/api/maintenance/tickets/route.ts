@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStrataContext } from "@/lib/strata/context";
+import { paidWorkspaceResponse } from "@/lib/strata/subscription";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const ticketSchema = z.object({
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
       { status: 409 },
     );
   }
+  const subscription = await paidWorkspaceResponse(strata.id);
+  if (subscription) return subscription;
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = ticketSchema.safeParse(body);

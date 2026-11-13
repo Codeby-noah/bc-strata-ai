@@ -12,12 +12,12 @@ export default function ParkingPage() {
         eyebrow: "Resident services",
         title: "Visitor parking",
         description:
-          "Create temporary visitor pass records with clear expiry times. Email delivery is not configured yet.",
+          "Save a visitor pass, print it for the visitor, and keep stall and locker assignments with each unit.",
         metrics: [
-          { label: "Passes issued", value: "—", note: "Visible to you and council" },
-          { label: "Expiring today", value: "—", note: "Time-sensitive passes" },
-          { label: "Spaces available", value: "—", note: "Configure parking first" },
-          { label: "Issued this month", value: "—", note: "Pass history" },
+          { label: "Passes issued", value: "—", note: "Saved in this workspace" },
+          { label: "Expiring today", value: "—", note: "End time is today" },
+          { label: "Active now", value: "—", note: "Still before the end time" },
+          { label: "Issued this month", value: "—", note: "Created this calendar month" },
         ],
         sections: [
           {
@@ -25,14 +25,14 @@ export default function ParkingPage() {
             description: "Review current passes and their expiry times.",
             emptyTitle: "No active passes",
             emptyDescription:
-              "The pass register will show visitor details, assigned parking, expiry, and issuing resident when this workflow is connected.",
+              "Use the form on this page to issue a pass. It stays on this list until the end time.",
           },
           {
-            title: "Parking setup",
-            description: "Define visitor stalls and pass rules for the property.",
-            emptyTitle: "Parking rules are not configured",
+            title: "Expired passes",
+            description: "Passes whose end time has already passed.",
+            emptyTitle: "No expired passes",
             emptyDescription:
-              "Add visitor stalls, permitted durations, and council-approved conditions before issuing digital passes.",
+              "Issued passes move here after their end time so council can keep a record without mixing them into the active list.",
           },
         ],
       }}

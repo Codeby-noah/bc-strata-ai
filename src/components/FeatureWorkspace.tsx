@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { printPlainDocument } from "@/lib/print-document";
 
 export type FeatureWorkspaceContent = {
   eyebrow: string;
@@ -30,7 +31,10 @@ export function FeatureWorkspace({ content, feature }: Props) {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [spaces, setSpaces] = useState<Item[]>([]);
+  const [assets, setAssets] = useState<Item[]>([]);
+  const [notices, setNotices] = useState<Item[]>([]);
   const [role, setRole] = useState("");
+  const [userId, setUserId] = useState("");
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -48,6 +52,8 @@ export function FeatureWorkspace({ content, feature }: Props) {
         reservations?: Item[];
         role?: string;
         userId?: string;
+        notices?: Item[];
+        assets?: Item[];
         error?: string;
       };
       setLoadError("");
@@ -55,9 +61,12 @@ export function FeatureWorkspace({ content, feature }: Props) {
         setLoadError(result.error ?? "This section could not be loaded.");
         setItems([]);
         setSpaces([]);
+        setAssets([]);
         return;
       }
       setRole(result.role ?? "");
+      setUserId(result.userId ?? "");
+      setAssets(result.assets ?? []);
       const loadedItems =
         feature === "amenities"
           ? (result.reservations ?? [])
@@ -72,6 +81,7 @@ export function FeatureWorkspace({ content, feature }: Props) {
           : loadedItems,
       );
       setSpaces(result.spaces ?? []);
+      setNotices(result.notices ?? []);
     } catch {
       setLoadError("This section could not be loaded. Check your connection and try again.");
     } finally {
@@ -92,6 +102,8 @@ export function FeatureWorkspace({ content, feature }: Props) {
           reservations?: Item[];
           role?: string;
           userId?: string;
+          notices?: Item[];
+          assets?: Item[];
           error?: string;
         };
         if (!active) return;
@@ -100,6 +112,8 @@ export function FeatureWorkspace({ content, feature }: Props) {
           return;
         }
         setRole(result.role ?? "");
+        setUserId(result.userId ?? "");
+        setAssets(result.assets ?? []);
         const loadedItems =
           feature === "amenities"
             ? (result.reservations ?? [])
@@ -114,6 +128,7 @@ export function FeatureWorkspace({ content, feature }: Props) {
             : loadedItems,
         );
         setSpaces(result.spaces ?? []);
+      setNotices(result.notices ?? []);
       } catch {
         if (active) {
           setLoadError("This section could not be loaded. Check your connection and try again.");
@@ -238,6 +253,8 @@ export function FeatureWorkspace({ content, feature }: Props) {
         </p>
       ) : null}
 
+      {feature === "amenities" && !loading ? <WeekAgenda items={items} /> : null}
+
       <div className="mt-8 grid gap-6 xl:grid-cols-2">
         <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="font-serif text-lg text-navy-950">
@@ -250,18 +267,7 @@ export function FeatureWorkspace({ content, feature }: Props) {
         </section>
 
         {content.sections.map((section, index) => {
-          const sectionItems =
-            feature === "amenities" && index === 0
-              ? spaces
-              : feature === "amenities"
-                ? items
-                : feature === "voting" && index === 1
-                  ? items.filter((item) => item.status !== "open")
-                  : feature === "voting"
-                    ? items.filter((item) => item.status === "open")
-                    : index === 0
-                      ? items
-                      : [];
+          const sectionItems = itemsForSection(feature, index, items, spaces);
           return (
             <section
               key={section.title}
@@ -277,11 +283,31 @@ export function FeatureWorkspace({ content, feature }: Props) {
                 <p className="px-5 py-8 text-center text-sm text-ink-500">
                   Loading records…
                 </p>
+              ) : feature === "maintenance" && index === 0 ? (
+                <MaintenanceBoard items={sectionItems} canManage={canManage} onUpdate={updateItem} onQuote={(event) => void submit(event, "add_quote")} saving={saving} />
               ) : sectionItems.length ? (
                 <ul className="divide-y divide-stone-100">
                   {sectionItems.map((item) => (
                     <li key={item.id} className="space-y-3 px-5 py-4">
                       <ItemSummary item={item} feature={feature} />
+                      {feature === "parking" ? (
+                        <button
+                          type="button"
+                          onClick={() => printVisitorPass(item)}
+                          className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-navy-900 hover:bg-stone-50"
+                        >
+                          Print pass
+                        </button>
+                      ) : null}
+                      {feature === "amenities" && index === 1 && item.status === "requested" && item.requested_by === userId ? (
+                        <button
+                          type="button"
+                          onClick={() => void updateItem(item.id, "cancelled")}
+                          className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-navy-900 hover:bg-stone-50"
+                        >
+                          Cancel request
+                        </button>
+                      ) : null}
                       {feature === "maintenance" && canManage ? (
                         <StatusActions
                           item={item}
@@ -402,14 +428,67 @@ export function FeatureWorkspace({ content, feature }: Props) {
     }
     if (feature === "parking") {
       return (
-        <form className="space-y-3" onSubmit={(event) => void submit(event)}>
-          <Field label="Visitor name" name="visitor_name" required maxLength={120} />
-          <Field label="Vehicle plate" name="vehicle_plate" required maxLength={24} />
-          <Field label="Visitor stall" name="stall" required maxLength={80} />
-          <Field label="Valid from" name="starts_at" type="datetime-local" required />
-          <Field label="Valid until" name="ends_at" type="datetime-local" required />
-          <SubmitButton saving={saving} label="Issue parking pass" />
-        </form>
+        <div className="space-y-6">
+          <form className="space-y-3" onSubmit={(event) => void submit(event)}>
+            <Field label="Visitor name" name="visitor_name" required maxLength={120} />
+            <Field label="Vehicle plate" name="vehicle_plate" required maxLength={24} />
+            <Field label="Visitor stall" name="stall" required maxLength={80} />
+            <Field label="Valid from" name="starts_at" type="datetime-local" required />
+            <Field label="Valid until" name="ends_at" type="datetime-local" required />
+            <SubmitButton saving={saving} label="Issue parking pass" />
+            <p className="text-xs leading-5 text-ink-500">
+              After it is saved, print it from the list. The pass is not emailed.
+            </p>
+          </form>
+          {canManage ? (
+            <form className="space-y-3 border-t border-stone-100 pt-5" onSubmit={(event) => void submit(event, "assign_asset")}>
+              <h3 className="text-sm font-semibold text-navy-950">Assign a stall or locker</h3>
+              <Field label="Unit number" name="unit_number" required maxLength={40} />
+              <Field label="Stall or locker number" name="stall_number" required maxLength={80} />
+              <label className="block text-sm font-medium text-ink-700">
+                Type
+                <select name="asset_type" className={fieldClass}>
+                  <option value="resident_stall">Resident stall</option>
+                  <option value="locker">Locker</option>
+                  <option value="visitor_pass">Visitor stall</option>
+                </select>
+              </label>
+              <Field label="License plate (optional)" name="license_plate" maxLength={24} />
+              <Field label="Resident email (optional, administrator only)" name="resident_email" type="email" maxLength={254} />
+              <p className="text-xs leading-5 text-ink-500">
+                The unit record is visible to council. An administrator can add the resident’s account email so it also appears in that person’s portal.
+              </p>
+              <SubmitButton saving={saving} label="Save assignment" />
+            </form>
+          ) : null}
+          {assets.length ? (
+            <ul className="space-y-2 border-t border-stone-100 pt-5">
+              {assets.map((asset) => (
+                <li key={asset.id} className="flex items-start justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2 text-sm text-ink-700">
+                  <span>
+                    <span className="font-semibold text-navy-950">
+                      {assetLabel(String(asset.asset_type ?? ""))} · Unit {String(asset.unit_number ?? "")}
+                    </span>
+                    <span className="mt-1 block text-xs text-ink-500">
+                      {String(asset.stall_number ?? "")}
+                      {asset.license_plate ? ` · ${String(asset.license_plate)}` : ""}
+                      {asset.assigned_to ? " · Linked to a resident account" : ""}
+                    </span>
+                  </span>
+                  {canManage ? (
+                    <button
+                      type="button"
+                      onClick={() => void removeAsset(asset.id)}
+                      className="shrink-0 text-xs font-semibold text-ink-700 underline underline-offset-2"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       );
     }
     if (feature === "voting") {
@@ -434,6 +513,7 @@ export function FeatureWorkspace({ content, feature }: Props) {
       );
     }
     return canManage ? (
+      <>
       <form className="space-y-3" onSubmit={(event) => void submit(event)}>
         <Field label="Reminder or warranty title" name="title" required maxLength={200} />
         <label className="block text-sm font-medium text-ink-700">
@@ -450,6 +530,40 @@ export function FeatureWorkspace({ content, feature }: Props) {
         <TextArea label="Notes (optional)" name="notes" maxLength={2000} />
         <SubmitButton saving={saving} label="Add reminder" />
       </form>
+      <form className="mt-6 space-y-3 border-t border-stone-100 pt-5" onSubmit={(event) => void submit(event, "publish_notice")}>
+        <h3 className="text-sm font-semibold text-navy-950">Publish a resident notice</h3>
+        <Field label="Notice title" name="title" required maxLength={160} />
+        <TextArea label="Message" name="body" required maxLength={2000} />
+        <label className="block text-sm font-medium text-ink-700">
+          Severity
+          <select name="severity" className={fieldClass}>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="emergency">Emergency</option>
+          </select>
+        </label>
+        <SubmitButton saving={saving} label="Publish notice" />
+      </form>
+      {notices.length ? (
+        <ul className="mt-4 space-y-2">
+          {notices.map((notice) => (
+            <li key={notice.id} className="rounded-lg bg-stone-50 px-3 py-2 text-sm text-ink-700">
+              <div className="flex items-start justify-between gap-3">
+                <span className="font-semibold capitalize text-navy-950">{String(notice.severity)} · {String(notice.title)}</span>
+                <button
+                  type="button"
+                  onClick={() => void copyNotice(String(notice.title ?? ""), String(notice.body ?? ""))}
+                  className="shrink-0 text-xs font-semibold text-ink-700 underline underline-offset-2"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="mt-1">{String(notice.body)}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
     ) : (
       <p className="rounded-lg bg-stone-50 p-4 text-sm leading-6 text-ink-500">
         Only active council members can manage compliance and warranty dates.
@@ -479,6 +593,112 @@ export function FeatureWorkspace({ content, feature }: Props) {
       setSaving(false);
     }
   }
+
+  async function removeAsset(id: string) {
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/workspace/parking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operation: "remove_asset", id }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) {
+        setMessage(result.error ?? "The assignment could not be removed.");
+        return;
+      }
+      setMessage("Assignment removed.");
+      await loadItems();
+    } catch {
+      setMessage("The assignment could not be removed. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copyNotice(title: string, body: string) {
+    try {
+      await navigator.clipboard.writeText(`${title}\n\n${body}`);
+      setMessage("Notice copied. Paste it into your own email or building notice.");
+    } catch {
+      setMessage("The notice could not be copied from this browser.");
+    }
+  }
+}
+
+function MaintenanceBoard({
+  items,
+  canManage,
+  onUpdate,
+  onQuote,
+  saving,
+}: {
+  items: Item[];
+  canManage: boolean;
+  onUpdate: (id: string, status: string) => Promise<void>;
+  onQuote: (event: FormEvent<HTMLFormElement>) => void;
+  saving: boolean;
+}) {
+  const columns = [
+    { key: "submitted", label: "New" },
+    { key: "triaged", label: "Quoting" },
+    { key: "in_progress", label: "In progress" },
+    { key: "completed", label: "Resolved" },
+  ];
+  return (
+    <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+      {columns.map((column) => {
+        const columnItems = items.filter((item) =>
+          column.key === "completed"
+            ? item.status === "completed" || item.status === "closed"
+            : item.status === column.key,
+        );
+        return (
+          <div key={column.key} className="rounded-xl bg-stone-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+              {column.label} · {columnItems.length}
+            </p>
+            <ul className="mt-3 space-y-3">
+              {columnItems.length ? columnItems.map((item) => (
+                <li key={item.id} className="space-y-3 rounded-lg border border-stone-200 bg-white p-3">
+                  <ItemSummary item={item} feature="maintenance" />
+                  {Array.isArray(item.quotes) && item.quotes.length ? (
+                    <ul className="space-y-1 text-xs text-ink-500">
+                      {(item.quotes as Item[]).map((quote) => (
+                        <li key={quote.id}>
+                          {String(quote.vendor)} · ${Number(quote.amount).toFixed(2)}
+                          {quote.notes ? ` · ${String(quote.notes)}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {canManage ? (
+                    <>
+                      <StatusActions
+                        item={item}
+                        statuses={["triaged", "in_progress", "completed", "closed"]}
+                        onUpdate={onUpdate}
+                      />
+                      <form className="space-y-2" onSubmit={onQuote}>
+                        <input type="hidden" name="request_id" value={item.id} />
+                        <input name="vendor" required maxLength={160} placeholder="Contractor" className={fieldClass} />
+                        <input name="amount" required type="number" min="0" step="0.01" placeholder="Quote amount" className={fieldClass} />
+                        <input name="notes" maxLength={2000} placeholder="Notes" className={fieldClass} />
+                        <SubmitButton saving={saving} label="Add quote" />
+                      </form>
+                    </>
+                  ) : null}
+                </li>
+              )) : (
+                <li className="text-xs text-ink-500">None</li>
+              )}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function metricValue(
@@ -495,7 +715,12 @@ function metricValue(
     return String(items.filter((item) => item.status === "in_progress").length);
   }
   if (label === "Completed this year") {
-    return String(items.filter((item) => item.status === "completed").length);
+    const year = new Date().getFullYear();
+    return String(items.filter((item) => {
+      if (item.status !== "completed" && item.status !== "closed") return false;
+      const created = new Date(String(item.created_at ?? ""));
+      return created.getFullYear() === year;
+    }).length);
   }
   if (label === "Shared spaces") return String(spaces.length);
   if (label === "Booking requests") {
@@ -508,8 +733,30 @@ function metricValue(
     return String(items.filter((item) => item.status === "requested").length);
   }
   if (label === "Passes issued") return String(items.length);
-  if (label === "Expiring today") return "—";
-  if (label === "Issued this month") return String(items.length);
+  if (label === "Issued this month") {
+    const now = new Date();
+    return String(items.filter((item) => {
+      const created = new Date(String(item.created_at ?? ""));
+      return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
+    }).length);
+  }
+  if (label === "Quotes to review") {
+    return String(items.reduce((count, item) => count + (Array.isArray(item.quotes) ? item.quotes.length : 0), 0));
+  }
+  if (label === "Expiring today") {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return String(items.filter((item) => {
+      const value = Date.parse(String(item.ends_at ?? ""));
+      return Number.isFinite(value) && value >= start.getTime() && value < end.getTime();
+    }).length);
+  }
+  if (label === "Overdue items") {
+    const today = new Date().toISOString().slice(0, 10);
+    return String(items.filter((item) => item.status === "upcoming" && String(item.due_date ?? "") < today).length);
+  }
   if (label === "Open votes") return String(items.filter((item) => item.status === "open").length);
   if (label === "Awaiting your vote") {
     return String(items.filter((item) => item.status === "open" && !item.voted).length);
@@ -523,7 +770,56 @@ function metricValue(
   if (label === "Warranty records") {
     return String(items.filter((item) => item.category === "warranty").length);
   }
+  if (label === "Last reviewed") {
+    const times = items
+      .map((item) => Date.parse(String(item.updated_at ?? item.created_at ?? "")))
+      .filter((value) => Number.isFinite(value));
+    if (!times.length) return "—";
+    return new Date(Math.max(...times)).toLocaleDateString("en-CA");
+  }
+  if (label === "Active now") {
+    const now = Date.now();
+    return String(items.filter((item) => {
+      const ends = Date.parse(String(item.ends_at ?? ""));
+      return Number.isFinite(ends) && ends >= now;
+    }).length);
+  }
+  if (label === "Recorded votes") {
+    return String(items.reduce((count, item) => count + (Array.isArray(item.governance_votes) ? item.governance_votes.length : 0), 0));
+  }
   return "—";
+}
+
+function itemsForSection(
+  feature: FeatureKey,
+  index: number,
+  items: Item[],
+  spaces: Item[],
+): Item[] {
+  if (feature === "amenities") return index === 0 ? spaces : items;
+  if (feature === "voting") {
+    return items.filter((item) => (index === 0 ? item.status === "open" : item.status !== "open"));
+  }
+  if (feature === "maintenance") {
+    if (index === 0) return items;
+    return items.filter((item) =>
+      (Array.isArray(item.quotes) && item.quotes.length > 0) ||
+      item.status === "completed" ||
+      item.status === "closed",
+    );
+  }
+  if (feature === "parking") {
+    const now = Date.now();
+    return items.filter((item) => {
+      const ends = Date.parse(String(item.ends_at ?? ""));
+      const active = Number.isFinite(ends) && ends >= now;
+      return index === 0 ? active : !active;
+    });
+  }
+  if (feature === "compliance") {
+    return items.filter((item) => (index === 0 ? item.category !== "warranty" : item.category === "warranty"));
+  }
+  return [];
 }
 
 function formTitle(feature: FeatureKey) {
@@ -596,7 +892,7 @@ function SubmitButton({ saving, label }: { saving: boolean; label: string }) {
 function ItemSummary({ item, feature }: { item: Item; feature: FeatureKey }) {
   const main =
     feature === "maintenance" ? item.title :
-      feature === "amenities" ? (item.amenity_spaces as { name?: string } | null)?.name ?? "Amenity booking" :
+      feature === "amenities" ? ((item.amenity_spaces as { name?: string } | null)?.name ?? item.name ?? "Amenity booking") :
         feature === "parking" ? `Visitor: ${String(item.visitor_name ?? "")}` :
           feature === "voting" ? item.title :
             item.title;
@@ -633,15 +929,131 @@ function ItemSummary({ item, feature }: { item: Item; feature: FeatureKey }) {
           {Number.isNaN(Date.parse(date)) ? date : new Date(date).toLocaleString("en-CA")}
         </p>
       ) : null}
+      {feature === "maintenance" && Array.isArray(item.quotes) && item.quotes.length ? (
+        <ul className="mt-2 space-y-1 text-xs text-ink-500">
+          {(item.quotes as Item[]).map((quote) => (
+            <li key={quote.id}>
+              {String(quote.vendor)} · ${Number(quote.amount).toFixed(2)}
+              {quote.notes ? ` · ${String(quote.notes)}` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {feature === "voting" && Array.isArray(item.governance_votes) ? (
-        <p className="mt-2 text-xs text-ink-500">
-          {item.voted ? "Your vote is recorded" : "No vote recorded for your account"}
-          {" · "}
-          {(item.governance_votes as Item[]).length} council vote(s) recorded
-        </p>
+        <VoteTally item={item} />
       ) : null}
     </div>
   );
+}
+
+function VoteTally({ item }: { item: Item }) {
+  const options = Array.isArray(item.options) ? item.options.map(String) : [];
+  const votes = Array.isArray(item.governance_votes) ? item.governance_votes as Item[] : [];
+  const counts = new Map(options.map((option) => [option, 0]));
+  for (const vote of votes) {
+    const choice = String(vote.choice ?? "");
+    counts.set(choice, (counts.get(choice) ?? 0) + 1);
+  }
+  const total = votes.length;
+  return (
+    <div className="mt-3 space-y-2">
+      <p className="text-xs text-ink-500">
+        {item.voted ? "Your vote is recorded." : "No vote recorded for your account."}
+        {" "}
+        {total} council {total === 1 ? "vote" : "votes"}. One vote per council member.
+      </p>
+      {[...counts.entries()].map(([choice, count]) => (
+        <div key={choice}>
+          <div className="flex justify-between text-xs text-ink-700">
+            <span>{choice}</span>
+            <span>{count}</span>
+          </div>
+          <div className="mt-1 h-1.5 rounded-full bg-stone-100">
+            <div
+              className="h-1.5 rounded-full bg-pine-700"
+              style={{ width: total ? `${Math.round((count / total) * 100)}%` : "0%" }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WeekAgenda({ items }: { items: Item[] }) {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + index);
+    return date;
+  });
+  return (
+    <section className="mt-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+      <h2 className="font-serif text-lg text-navy-950">Next 7 days</h2>
+      <p className="mt-1 text-sm text-ink-500">Requested and approved bookings already saved for these dates.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+        {days.map((day) => {
+          const dayStart = day.getTime();
+          const dayEnd = new Date(day);
+          dayEnd.setDate(day.getDate() + 1);
+          const bookings = items.filter((item) => {
+            if (!["requested", "approved"].includes(String(item.status))) return false;
+            const start = Date.parse(String(item.starts_at ?? ""));
+            const end = Date.parse(String(item.ends_at ?? ""));
+            return Number.isFinite(start) && Number.isFinite(end) && start < dayEnd.getTime() && end > dayStart;
+          });
+          return (
+            <div key={day.toISOString()} className="rounded-lg bg-stone-50 p-3">
+              <p className="text-xs font-semibold text-navy-950">
+                {day.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}
+              </p>
+              {bookings.length ? (
+                <ul className="mt-2 space-y-2">
+                  {bookings.map((booking) => (
+                    <li key={booking.id} className="text-xs leading-5 text-ink-700">
+                      <span className="font-semibold">{String((booking.amenity_spaces as { name?: string } | null)?.name ?? "Space")}</span>
+                      <span className="mt-0.5 block capitalize text-ink-500">{String(booking.status).replaceAll("_", " ")}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-ink-500">Open</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function printVisitorPass(item: Item) {
+  printPlainDocument(
+    "Visitor parking pass",
+    [
+      "Visitor parking pass",
+      "",
+      `Visitor: ${String(item.visitor_name ?? "")}`,
+      `Plate: ${String(item.vehicle_plate ?? "")}`,
+      `Stall: ${String(item.stall ?? "")}`,
+      `Valid from: ${formatWhen(item.starts_at)}`,
+      `Valid until: ${formatWhen(item.ends_at)}`,
+      "",
+      "Show this pass while the vehicle is parked. It is a workspace record and is not emailed.",
+    ].join("\n"),
+  );
+}
+
+function formatWhen(value: unknown) {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return "Not set";
+  return new Date(value).toLocaleString("en-CA");
+}
+
+function assetLabel(type: string) {
+  if (type === "resident_stall") return "Resident stall";
+  if (type === "locker") return "Locker";
+  if (type === "visitor_pass") return "Visitor stall";
+  return type.replaceAll("_", " ");
 }
 
 function StatusActions({

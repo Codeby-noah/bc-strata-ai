@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { connection } from "next/server";
 import { CheckCircle2 } from "lucide-react";
 import { BillingSubscribeButton } from "@/components/BillingSubscribeButton";
+import { ManageBillingButton } from "@/components/ManageBillingButton";
 import { getStrataContext } from "@/lib/strata/context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -12,28 +13,22 @@ const includedFeatures = [
   "Multi-tenant Council Hub & Resident Portal",
   "AI-Powered Document & Bylaw Vault",
   "Fund Accounting Ledger & Receipt Uploads",
-  "Automated Form B & Form F Generation",
+  "Form B and Form F draft records",
   "Maintenance Ticketing & Asset Tracking",
 ];
 
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string | string[] }>;
+  searchParams: Promise<{ checkout?: string | string[]; reason?: string | string[] }>;
 }) {
+  await connection();
   const context = await getStrataContext();
   if (!context) return null;
   const strata = context.activeMembership;
   if (!strata || strata.role !== "admin") {
     return (
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/"
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
-        >
-          <span aria-hidden>←</span>
-          Back to Home
-        </Link>
         <p className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
           Only a strata administrator can manage billing.
         </p>
@@ -44,10 +39,12 @@ export default async function BillingPage({
   const params = await searchParams;
   const checkoutState =
     typeof params.checkout === "string" ? params.checkout : null;
+  const billingReason =
+    typeof params.reason === "string" ? params.reason : null;
   const supabase = await createSupabaseServerClient();
   const { data: billing, error } = await supabase
     .from("strata_billing")
-    .select("subscription_status, current_period_end")
+    .select("subscription_status, current_period_end, stripe_customer_id")
     .eq("strata_id", strata.id)
     .maybeSingle();
 
@@ -57,13 +54,26 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link
-        href="/"
-        className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
-      >
-        <span aria-hidden>←</span>
-        Back to Home
-      </Link>
+      {billingReason === "portal_needs_checkout" ? (
+        <p
+          role="status"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          Start checkout first so Stripe can create a customer for this strata.
+          The billing portal opens after that customer exists.
+        </p>
+      ) : null}
+
+      {billingReason === "subscription_required" && !active ? (
+        <p
+          role="status"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          Start your 1-month free trial to unlock the council workspace for this
+          strata. After checkout, return to the dashboard — access activates when
+          Stripe confirms the subscription.
+        </p>
+      ) : null}
 
       {checkoutState === "success" ? (
         <p
@@ -84,25 +94,20 @@ export default async function BillingPage({
       <section className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-slate-200/60">
         <div className="px-6 py-9 sm:px-12 sm:py-12">
           <div className="text-center">
-            <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
-              Launch Special
-            </span>
-            <p className="mt-6 text-sm font-semibold text-slate-500">
-              BC Strata AI · Council
+            <p className="text-sm font-semibold text-slate-500">
+              StrataDock · Council
             </p>
-            <p className="mt-5 text-lg font-medium text-slate-400">
-              <span className="sr-only">Standard price: </span>
-              <s>$139</s>
-              <span className="ml-1 text-sm">CAD / month</span>
+            <p className="mt-5 text-sm font-semibold text-slate-500">
+              <span className="line-through">$179</span> regular price
             </p>
             <h1 className="mt-1 text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl">
-              $119
+              $139
               <span className="ml-2 text-xl font-semibold text-slate-600">
-                / month
+                CAD / month
               </span>
             </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Introductory launch rate locked in for your first 12 months.
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-800">
+              Discounted for the first 12 months. After that, the price goes up to $179 CAD a month.
             </p>
           </div>
 
@@ -133,19 +138,34 @@ export default async function BillingPage({
                 billing migration before subscribing.
               </p>
             ) : active ? (
-              <div className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-                <p>Your subscription is {status}.</p>
-                {billing?.current_period_end ? (
-                  <p className="mt-1 text-xs font-normal">
-                    Current period ends{" "}
-                    {new Date(billing.current_period_end).toLocaleDateString(
-                      "en-CA",
-                    )}
-                  </p>
+              <div className="space-y-4">
+                <div className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
+                  <p>Your subscription is {status}.</p>
+                  {billing?.current_period_end ? (
+                    <p className="mt-1 text-xs font-normal">
+                      Current period ends{" "}
+                      {new Date(billing.current_period_end).toLocaleDateString(
+                        "en-CA",
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+                {typeof billing?.stripe_customer_id === "string" ? (
+                  <ManageBillingButton
+                    label="Manage subscription"
+                    className="flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-4 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-70"
+                  />
                 ) : null}
               </div>
             ) : (
-              <BillingSubscribeButton />
+              <>
+                <p className="mb-4 text-sm leading-6 text-slate-600">
+                  Includes a <strong>1-month free trial</strong> (30 days). You will not be
+                  charged until the trial ends unless you cancel in Stripe. The first 12
+                  months after the trial are $139 CAD. The price then goes up to $179 CAD a month.
+                </p>
+                <BillingSubscribeButton />
+              </>
             )}
           </div>
 
@@ -156,8 +176,8 @@ export default async function BillingPage({
             </p>
             <p className="mt-3 text-xs leading-5 text-slate-400">
               Billed monthly in CAD. Applicable taxes, if any, are calculated
-              by Stripe Checkout. Subscription management and cancellation
-              links are not configured in this MVP.
+              by Stripe Checkout. Card updates and cancellation use the Stripe
+              customer portal.
             </p>
           </div>
         </div>
